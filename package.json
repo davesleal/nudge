@@ -7,6 +7,15 @@
     "nudge-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davesleal/nudge.git"
+  },
+  "homepage": "https://github.com/davesleal/nudge#readme",
+  "bugs": {
+    "url": "https://github.com/davesleal/nudge/issues"
+  },
+  "author": "Dave Leal",
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -24,7 +33,9 @@
     "notion",
     "productivity",
     "accountability",
-    "nudge"
+    "nudge",
+    "assistant",
+    "task-management"
   ],
   "license": "MIT",
   "dependencies": {
