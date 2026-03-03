@@ -1,8 +1,12 @@
 # nudge
 
+[![npm version](https://img.shields.io/npm/v/nudge-mcp)](https://www.npmjs.com/package/nudge-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-compatible-blue)](https://modelcontextprotocol.io)
+
 > Your AI assistant, acting like a friend who actually remembers what you said you'd do.
 
-**nudge** is an open-source [MCP](https://modelcontextprotocol.io) server that connects Claude (or any MCP-compatible AI) to your todo app — so instead of a cold productivity dashboard, you get a friend checking in.
+**nudge** is an open-source [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that connects Claude — or any MCP-compatible AI — to your todo app. Instead of a cold productivity dashboard, you get a friend checking in naturally.
 
 ```
 "hey, you've had 'call the accountant' on your list for 4 days 👀"
@@ -10,13 +14,13 @@
 "added 'dentist appointment' for Friday"
 ```
 
-Not first-person. Not preachy. Just a nudge.
+No server to run. No first-person AI narration. Just a nudge.
 
 ---
 
 ## Install
 
-### Claude Desktop (no server needed)
+### Claude Desktop (recommended — no server needed)
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -31,9 +35,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude. Done. Claude now has access to your tasks and will bring them up naturally.
+Restart Claude Desktop. That's it — Claude now has access to your tasks and will bring them up naturally.
 
-> **No server to run.** Claude Desktop launches nudge as a subprocess automatically.
+> Claude Desktop launches nudge as a subprocess. Nothing runs in the background when you're not using Claude.
 
 ### Global install
 
@@ -42,7 +46,7 @@ npm install -g nudge-mcp
 nudge-mcp
 ```
 
-### No install
+### No install (try it)
 
 ```bash
 npx nudge-mcp
@@ -52,28 +56,30 @@ npx nudge-mcp
 
 ## Supported backends
 
-| App | Type | Notes |
+| App | Config type | Notes |
 |---|---|---|
-| Local JSON file | `local` | Default — zero config |
+| Local JSON file | `local` | Default — zero config needed |
 | Markdown checklist | `local` | Any `- [ ] task` format |
-| Todoist | `todoist` | Full read + write |
+| Todoist | `todoist` | Full read + write via REST API |
 | Notion | `notion` | Read + write via database |
-| Anything else | `local` | Export/sync to a JSON or `.md` file |
+| Anything else | `local` | Sync/export to a JSON or `.md` file |
+
+Want to add an adapter? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## Configuration
 
-Create `~/.nudge/config.json` — or skip it entirely to use the local JSON default.
+Create `~/.nudge/config.json` — or skip it entirely to use the zero-config local default.
 
-### Local JSON (default)
+### Local JSON (default — no config file needed)
 
-No config file needed. Tasks live at `~/.nudge/todos.json`:
+Tasks live at `~/.nudge/todos.json`:
 
 ```json
 [
   { "id": "1", "title": "Call the accountant", "done": false, "due": "2026-03-03", "priority": "high" },
-  { "id": "2", "title": "Buy birthday gift", "done": true },
+  { "id": "2", "title": "Buy birthday gift",   "done": true },
   { "id": "3", "title": "Dentist appointment", "done": false, "tags": ["health"] }
 ]
 ```
@@ -100,7 +106,7 @@ No config file needed. Tasks live at `~/.nudge/todos.json`:
 }
 ```
 
-Or: `TODOIST_API_KEY=your_token npx nudge-mcp`
+Or set the env var: `TODOIST_API_KEY=your_token npx nudge-mcp`
 
 Get your token: Todoist → Settings → Integrations → Developer
 
@@ -116,51 +122,53 @@ Get your token: Todoist → Settings → Integrations → Developer
 }
 ```
 
-Your database needs: `Name` (title), `Done` (checkbox), and optionally `Due` (date), `Priority` (select), `Tags` (multi-select).
+Your database needs: `Name` (title), `Done` (checkbox), and optionally `Due` (date), `Priority` (select: Low / Medium / High), `Tags` (multi-select).
+
+Setup: create an internal integration at [notion.so/my-integrations](https://www.notion.so/my-integrations), then share your database with it.
 
 ---
 
-## What your AI can do
+## Tools
+
+nudge exposes these tools to any connected AI:
 
 | Tool | What it does |
 |---|---|
 | `check_tasks` | "Did I ever call the dentist?" — fuzzy matched |
 | `get_pending_today` | What's still open and due today |
-| `list_todos` | Full list with filters (overdue, tag, priority, etc.) |
+| `list_todos` | Full list, with filters (overdue, tag, priority, done) |
 | `get_stats` | Honest summary — done, pending, overdue |
 | `search_todos` | Find tasks by keyword |
 | `create_todo` | "Remind me to call Dave on Friday" → adds it |
 
-nudge also ships a **suggested system prompt** (as an MCP prompt resource) that gives Claude the right personality: warm, honest, not preachy.
+nudge also ships a **suggested system prompt** (as an MCP prompt resource named `nudge-persona`) that gives the AI the right tone: warm, honest, not preachy. Claude Desktop can pick this up automatically.
 
 ---
 
-## Connecting other apps
+## Connecting apps without a native adapter
 
-No native adapter for your app? Use the local file as a bridge:
+**Apple Shortcuts** — build a shortcut that exports tasks as JSON to `~/.nudge/todos.json` on a schedule.
 
-**Apple Shortcuts** — build a shortcut that exports tasks as JSON to `~/.nudge/todos.json` and schedule it to run hourly.
-
-**Zapier / Make** — add a step that writes task updates to the file whenever something changes.
+**Zapier / Make** — add a step that writes task updates to the file whenever something changes in your app.
 
 **Obsidian / Logseq** — point `filePath` at your daily note and use `format: "markdown"`.
 
-**Any CLI app** — add a cron: `0 * * * * myapp export > ~/.nudge/todos.json`
+**Any CLI app** — add a cron: `0 * * * * myapp export --format json > ~/.nudge/todos.json`
 
 ---
 
 ## Writing a new adapter
 
-Implement two methods, everything else is handled:
+Each adapter is a single file in `src/adapters/`. Implement two required methods and you're done:
 
 ```typescript
-import { Todo, NewTodo, TodoAdapter } from "nudge-mcp/types";
+import { Todo, NewTodo, TodoAdapter } from "../types.js";
 
 export class MyAppAdapter implements TodoAdapter {
   name = "myapp";
 
   async listTodos(): Promise<Todo[]> {
-    // fetch from your app
+    // fetch from your app's API
     return [];
   }
 
@@ -168,13 +176,16 @@ export class MyAppAdapter implements TodoAdapter {
     return null;
   }
 
-  // optional but recommended
+  // Optional — enables create_todo tool
   async createTodo(input: NewTodo): Promise<Todo> { ... }
+
+  // Optional — enables mark complete/incomplete
   async markComplete(id: string): Promise<void>   { ... }
+  async markIncomplete(id: string): Promise<void> { ... }
 }
 ```
 
-PRs for new adapters are very welcome.
+Then register it in `src/index.ts` in `buildAdapter()`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
 ---
 
@@ -184,15 +195,17 @@ PRs for new adapters are very welcome.
 - [ ] Apple Reminders adapter (via AppleScript / Shortcuts)
 - [ ] Linear adapter
 - [ ] GitHub Issues adapter
-- [ ] Asana adapter
-- [ ] Webhook listener for real-time push (reverse feed)
+- [ ] Asana / Microsoft To Do adapter
+- [ ] Webhook listener for real-time push (tasks trigger the AI)
 - [ ] Scheduled nudge mode (daily check-in without opening Claude)
-- [ ] `mark_complete` tool (close the loop from the AI)
+- [ ] `mark_complete` tool — close the loop from inside the AI
 
 ---
 
 ## Contributing
 
-MIT licensed. Open an issue or PR — especially for new adapters.
+PRs and issues are welcome — especially new adapters. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Each adapter is a single self-contained file in `src/adapters/`.
+## License
+
+[MIT](LICENSE) © Dave Leal
