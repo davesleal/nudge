@@ -1,6 +1,6 @@
 {
   "name": "nudge-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A friendly AI accountability layer for your todo app — nudge, not nag.",
   "type": "module",
   "bin": {
