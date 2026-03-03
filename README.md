@@ -137,6 +137,28 @@ Your database needs: `Name` (title), `Done` (checkbox), and optionally `Due` (da
 
 Setup: create an internal integration at [notion.so/my-integrations](https://www.notion.so/my-integrations), then share your database with it.
 
+### Apple Reminders
+
+```json
+{
+  "adapter": {
+    "type": "reminders",
+    "list": "To Do"
+  }
+}
+```
+
+No API key needed — reads directly from the Reminders app via AppleScript. macOS only.
+
+`list` is optional. If omitted, nudge reads all lists. If you have a lot of reminders or multiple iCloud accounts, specifying a list is faster and more reliable.
+
+**Troubleshooting:**
+
+- **First run** — macOS will prompt for Automation permission. Click Allow when asked, or go to System Settings → Privacy & Security → Automation and enable Reminders for your terminal.
+- **iCloud sync issues** — if you get a "Can't get" error, open Reminders.app and wait for it to fully sync before trying again.
+- **Timeouts with large lists** — add `"list": "To Do"` (or whichever list you use most) to your config to limit the scope.
+- **List name must match exactly** — including capitalisation. Run `osascript -e 'tell application "Reminders" to get name of every list'` in Terminal to see your exact list names.
+
 ---
 
 ## Tools

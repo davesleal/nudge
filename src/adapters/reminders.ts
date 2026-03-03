@@ -41,7 +41,35 @@ export class RemindersAdapter implements TodoAdapter {
         timeout: 15000,
       }).trim();
     } catch (e: any) {
-      throw new Error(`AppleScript error: ${e.stderr ?? e.message}`);
+      const stderr: string = e.stderr ?? "";
+
+      // Translate common AppleScript errors into actionable messages
+      if (stderr.includes("not allowed assistive access") || stderr.includes("-1719")) {
+        throw new Error(
+          "Reminders access denied. Go to System Settings → Privacy & Security → Automation " +
+          "and enable Reminders access for your terminal app."
+        );
+      }
+      if (stderr.includes("-1728") || stderr.includes("Can't get")) {
+        throw new Error(
+          "Couldn't read Reminders — this usually means the app is still syncing from iCloud. " +
+          "Open Reminders.app, wait for it to load, then try again. " +
+          "If using a specific list, check the list name matches exactly (case-sensitive)."
+        );
+      }
+      if (stderr.includes("Application isn't running") || stderr.includes("-600")) {
+        throw new Error(
+          "Reminders app isn't running. Open Reminders.app and try again."
+        );
+      }
+      if (e.signal === "SIGTERM" || stderr.includes("timeout")) {
+        throw new Error(
+          "Reminders timed out — the app may be syncing a large number of tasks. " +
+          "Try specifying a single list in your config: { \"list\": \"To Do\" }"
+        );
+      }
+
+      throw new Error(`Reminders error: ${stderr || e.message}`);
     }
   }
 
