@@ -11,7 +11,7 @@
  *   {
  *     "adapter": {
  *       "type": "reminders",
- *       "list": "Reminders"    // optional: name of the list to read (default: all)
+ *       "list": "To Do"    // optional: name of a specific list (default: all lists)
  *     }
  *   }
  */
@@ -29,7 +29,6 @@ export class RemindersAdapter implements TodoAdapter {
 
   constructor(config: RemindersConfig = {}) {
     this.list = config.list;
-
     if (process.platform !== "darwin") {
       throw new Error("Apple Reminders adapter is macOS only.");
     }
@@ -37,37 +36,57 @@ export class RemindersAdapter implements TodoAdapter {
 
   private runScript(script: string): string {
     try {
-      return execSync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, {
+      return execSync(`osascript << 'APPLESCRIPT'\n${script}\nAPPLESCRIPT`, {
         encoding: "utf-8",
-        timeout: 10000,
+        timeout: 15000,
       }).trim();
     } catch (e: any) {
-      throw new Error(`AppleScript error: ${e.message}`);
+      throw new Error(`AppleScript error: ${e.stderr ?? e.message}`);
     }
   }
 
   async listTodos(): Promise<Todo[]> {
-    const listFilter = this.list
-      ? `list "${this.list}" of`
-      : "";
-
-    const script = `
-      set output to ""
-      tell application "Reminders"
-        set theReminders to reminders of ${listFilter} default account
-        repeat with r in theReminders
-          set rName to name of r
-          set rDone to completed of r
-          set rDue to ""
-          try
-            set rDue to (due date of r) as string
-          end try
-          set rID to id of r
-          set output to output & rID & "|" & rName & "|" & rDone & "|" & rDue & "\\n"
-        end repeat
-      end tell
-      return output
-    `;
+    // Iterate by list name — works reliably with iCloud accounts
+    const script = this.list
+      ? `
+        set output to ""
+        tell application "Reminders"
+          set theList to list "${this.list}"
+          set theReminders to reminders of theList
+          repeat with r in theReminders
+            set rID to id of r
+            set rName to name of r
+            set rDone to completed of r
+            set rDue to ""
+            try
+              set rDue to (due date of r) as string
+            end try
+            set output to output & rID & "|" & rName & "|" & rDone & "|" & rDue & linefeed
+          end repeat
+        end tell
+        return output
+      `
+      : `
+        set output to ""
+        tell application "Reminders"
+          set theLists to every list
+          repeat with aList in theLists
+            set theReminders to reminders of aList
+            set listName to name of aList
+            repeat with r in theReminders
+              set rID to id of r
+              set rName to name of r
+              set rDone to completed of r
+              set rDue to ""
+              try
+                set rDue to (due date of r) as string
+              end try
+              set output to output & rID & "|" & rName & "|" & rDone & "|" & rDue & "|" & listName & linefeed
+            end repeat
+          end repeat
+        end tell
+        return output
+      `;
 
     const raw = this.runScript(script);
     if (!raw) return [];
@@ -76,12 +95,14 @@ export class RemindersAdapter implements TodoAdapter {
       .split("\n")
       .filter(Boolean)
       .map((line, idx) => {
-        const [id, title, done, due] = line.split("|");
+        const parts = line.split("|");
+        const [id, title, done, due, tag] = parts;
         return {
-          id: id ?? String(idx),
+          id:   id   ?? String(idx),
           title: title ?? "",
-          done: done === "true",
-          due: due ? this.parseAppleDate(due) : undefined,
+          done:  done === "true",
+          due:   due ? this.parseAppleDate(due) : undefined,
+          tags:  tag ? [tag] : [],
         };
       });
   }
@@ -92,19 +113,21 @@ export class RemindersAdapter implements TodoAdapter {
   }
 
   async createTodo(input: NewTodo): Promise<Todo> {
-    const listTarget = this.list
-      ? `list "${this.list}" of default account`
-      : `default list of default account`;
-
+    const targetList = this.list ?? "Reminders";
     const dueLine = input.due
       ? `set due date of newReminder to date "${input.due}"`
+      : "";
+    const notesLine = input.notes
+      ? `set body of newReminder to "${input.notes.replace(/"/g, '\\"')}"`
       : "";
 
     const script = `
       tell application "Reminders"
-        set newReminder to make new reminder at end of ${listTarget}
+        set theList to list "${targetList}"
+        set newReminder to make new reminder at end of theList
         set name of newReminder to "${input.title.replace(/"/g, '\\"')}"
         ${dueLine}
+        ${notesLine}
         return id of newReminder
       end tell
     `;
@@ -112,12 +135,12 @@ export class RemindersAdapter implements TodoAdapter {
     const id = this.runScript(script);
     return {
       id,
-      title: input.title,
-      done: false,
-      due: input.due,
-      priority: input.priority ?? "low",
-      tags: input.tags ?? [],
-      notes: input.notes,
+      title:     input.title,
+      done:      false,
+      due:       input.due,
+      priority:  input.priority ?? "low",
+      tags:      input.tags ?? [],
+      notes:     input.notes,
       createdAt: new Date().toISOString(),
     };
   }
