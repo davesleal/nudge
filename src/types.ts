@@ -28,7 +28,7 @@ export interface TodoAdapter {
 }
 
 export interface AdapterConfig {
-  type: "local" | "todoist" | "notion" | "linear" | "github";
+  type: "local" | "todoist" | "notion" | "linear" | "github" | "reminders";
   [key: string]: unknown;
 }
 

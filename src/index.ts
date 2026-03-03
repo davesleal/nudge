@@ -35,6 +35,9 @@ import { Todo, NewTodo, TodoAdapter, Config } from "./types.js";
 import { LocalAdapter } from "./adapters/local.js";
 import { TodoistAdapter } from "./adapters/todoist.js";
 import { NotionAdapter } from "./adapters/notion.js";
+import { LinearAdapter } from "./adapters/linear.js";
+import { GitHubAdapter } from "./adapters/github.js";
+import { RemindersAdapter } from "./adapters/reminders.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -53,10 +56,13 @@ async function loadConfig(): Promise<Config> {
 function buildAdapter(config: Config): TodoAdapter {
   const { type, ...rest } = config.adapter;
   switch (type) {
-    case "todoist": return new TodoistAdapter(rest as any);
-    case "notion":  return new NotionAdapter(rest as any);
+    case "todoist":   return new TodoistAdapter(rest as any);
+    case "notion":    return new NotionAdapter(rest as any);
+    case "linear":    return new LinearAdapter(rest as any);
+    case "github":    return new GitHubAdapter(rest as any);
+    case "reminders": return new RemindersAdapter(rest as any);
     case "local":
-    default:        return new LocalAdapter(rest as any);
+    default:          return new LocalAdapter(rest as any);
   }
 }
 
@@ -204,6 +210,45 @@ const TOOLS = [
       required: ["title"],
     },
   },
+  {
+    name: "mark_complete",
+    description:
+      "Mark a task as done. Use this when the user says 'done', 'finished', 'crossed that off', " +
+      "or anything that means they completed something. Fuzzy-match the name first with check_tasks " +
+      "if you're not sure of the exact ID. Celebrate appropriately — one line is enough.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The task ID to mark complete.",
+        },
+        name: {
+          type: "string",
+          description: "Task name to fuzzy-match if you don't have the ID.",
+        },
+      },
+    },
+  },
+  {
+    name: "mark_incomplete",
+    description:
+      "Reopen a task that was marked done. Use when the user says something like " +
+      "'actually I didn't finish that' or 'reopen X'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The task ID to reopen.",
+        },
+        name: {
+          type: "string",
+          description: "Task name to fuzzy-match if you don't have the ID.",
+        },
+      },
+    },
+  },
 ];
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -279,6 +324,46 @@ async function handleSearchTodos(adapter: TodoAdapter, args: any): Promise<strin
   return matches.map(formatTodo).join("\n");
 }
 
+async function handleMarkComplete(adapter: TodoAdapter, args: any): Promise<string> {
+  if (!adapter.markComplete) {
+    return "This adapter doesn't support marking tasks complete yet.";
+  }
+  let id = args.id;
+  let title = args.name;
+
+  if (!id && args.name) {
+    const todos = await adapter.listTodos();
+    const match = todos.find((t) => fuzzyMatch(t.title, args.name));
+    if (!match) return `❓ Couldn't find a task matching "${args.name}".`;
+    id = match.id;
+    title = match.title;
+  }
+  if (!id) return "Please provide a task ID or name.";
+
+  await adapter.markComplete(id);
+  return `✅ Marked done: "${title ?? id}"`;
+}
+
+async function handleMarkIncomplete(adapter: TodoAdapter, args: any): Promise<string> {
+  if (!adapter.markIncomplete) {
+    return "This adapter doesn't support reopening tasks yet.";
+  }
+  let id = args.id;
+  let title = args.name;
+
+  if (!id && args.name) {
+    const todos = await adapter.listTodos();
+    const match = todos.find((t) => fuzzyMatch(t.title, args.name));
+    if (!match) return `❓ Couldn't find a task matching "${args.name}".`;
+    id = match.id;
+    title = match.title;
+  }
+  if (!id) return "Please provide a task ID or name.";
+
+  await adapter.markIncomplete(id);
+  return `⬜ Reopened: "${title ?? id}"`;
+}
+
 async function handleCreateTodo(adapter: TodoAdapter, args: any): Promise<string> {
   if (!adapter.createTodo) {
     return "This adapter doesn't support creating tasks yet. Check the adapter docs or use the local adapter.";
@@ -325,6 +410,8 @@ async function main() {
         case "get_stats":         text = await handleGetStats(adapter); break;
         case "search_todos":      text = await handleSearchTodos(adapter, args ?? {}); break;
         case "create_todo":       text = await handleCreateTodo(adapter, args ?? {}); break;
+        case "mark_complete":     text = await handleMarkComplete(adapter, args ?? {}); break;
+        case "mark_incomplete":   text = await handleMarkIncomplete(adapter, args ?? {}); break;
         default:                  text = `Unknown tool: ${name}`;
       }
     } catch (e: any) {

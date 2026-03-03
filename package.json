@@ -4,7 +4,8 @@
   "description": "A friendly AI accountability layer for your todo app — nudge, not nag.",
   "type": "module",
   "bin": {
-    "nudge-mcp": "./dist/index.js"
+    "nudge-mcp": "./dist/index.js",
+    "nudge-mcp-init": "./dist/init.js"
   },
   "main": "./dist/index.js",
   "repository": {

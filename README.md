@@ -20,7 +20,15 @@ No server to run. No first-person AI narration. Just a nudge.
 
 ## Install
 
-### Claude Desktop (recommended — no server needed)
+### Quickest — setup wizard
+
+```bash
+npx nudge-mcp-init
+```
+
+Walks you through picking your todo app, entering credentials, and wiring up Claude Desktop automatically. Done in under a minute.
+
+### Manual — Claude Desktop (no server needed)
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -62,6 +70,9 @@ npx nudge-mcp
 | Markdown checklist | `local` | Any `- [ ] task` format |
 | Todoist | `todoist` | Full read + write via REST API |
 | Notion | `notion` | Read + write via database |
+| Linear | `linear` | Issues assigned to you, full read + write |
+| GitHub Issues | `github` | Issues assigned to you, full read + write |
+| Apple Reminders | `reminders` | macOS only — no API key, reads directly |
 | Anything else | `local` | Sync/export to a JSON or `.md` file |
 
 Want to add an adapter? See [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -140,6 +151,8 @@ nudge exposes these tools to any connected AI:
 | `get_stats` | Honest summary — done, pending, overdue |
 | `search_todos` | Find tasks by keyword |
 | `create_todo` | "Remind me to call Dave on Friday" → adds it |
+| `mark_complete` | "Done with the report" → ticks it off |
+| `mark_incomplete` | "Actually I didn't finish that" → reopens it |
 
 nudge also ships a **suggested system prompt** (as an MCP prompt resource named `nudge-persona`) that gives the AI the right tone: warm, honest, not preachy. Claude Desktop can pick this up automatically.
 
@@ -191,14 +204,14 @@ Then register it in `src/index.ts` in `buildAdapter()`. See [CONTRIBUTING.md](CO
 
 ## Roadmap
 
-- [ ] `nudge init` — interactive setup wizard
-- [ ] Apple Reminders adapter (via AppleScript / Shortcuts)
-- [ ] Linear adapter
-- [ ] GitHub Issues adapter
+- [x] `nudge init` — interactive setup wizard
+- [x] Apple Reminders adapter (macOS, via AppleScript)
+- [x] Linear adapter
+- [x] GitHub Issues adapter
+- [x] `mark_complete` / `mark_incomplete` tools
 - [ ] Asana / Microsoft To Do adapter
 - [ ] Webhook listener for real-time push (tasks trigger the AI)
 - [ ] Scheduled nudge mode (daily check-in without opening Claude)
-- [ ] `mark_complete` tool — close the loop from inside the AI
 
 ---
 
