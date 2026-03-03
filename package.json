@@ -1,0 +1,41 @@
+{
+  "name": "nudge-mcp",
+  "version": "1.0.0",
+  "description": "A friendly AI accountability layer for your todo app — nudge, not nag.",
+  "type": "module",
+  "bin": {
+    "nudge-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "todos",
+    "tasks",
+    "todoist",
+    "notion",
+    "productivity",
+    "accountability",
+    "nudge"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
